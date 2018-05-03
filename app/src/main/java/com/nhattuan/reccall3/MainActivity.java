@@ -12,6 +12,7 @@ import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
+import com.google.android.gms.auth.GoogleAuthUtil;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
@@ -48,6 +49,8 @@ public class MainActivity extends Activity {
     private static final int REQUEST_CODE_CAPTURE_IMAGE = 1;
     private static final int REQUEST_CODE_CREATOR = 2;
 
+    private AccountManager mAccountManager;
+
     private Bitmap mBitmapToSave;
     /**
      * Create the main activity.
@@ -71,10 +74,21 @@ public class MainActivity extends Activity {
 
         }
 
-        GoogleAccountCredential credential = GoogleAccountCredential.usingOAuth2(this, DriveScopes.DRIVE);
-        credential.setSelectedAccountName(accountName);
-        Drive service = new Drive.Builder(AndroidHttp.newCompatibleTransport(), new GsonFactory(), credential).build();
+//        GoogleAccountCredential credential = GoogleAccountCredential.usingOAuth2(this, DriveScopes.DRIVE);
+//        credential.setSelectedAccountName(accountName);
+//        Drive service = new Drive.Builder(AndroidHttp.newCompatibleTransport(), new GsonFactory(), credential).build();
+        Log.d(TAG, "onCreate: " + getAccountNames());
+    }
 
+    private String[] getAccountNames() {
+        mAccountManager = AccountManager.get(this);
+        Account[] accounts = mAccountManager.getAccountsByType(GoogleAuthUtil.GOOGLE_ACCOUNT_TYPE);
+        Account accounts1 = new Account("tuan260387@gmail.com",GoogleAuthUtil.GOOGLE_ACCOUNT_TYPE);
+        String[] names = new String[accounts.length];
+        for (int i = 0; i < names.length; i++) {
+            names[i] = accounts[i].name;
+        }
+        return names;
     }
 
     private GoogleSignInClient buildGoogleSignInClient() {
@@ -82,9 +96,14 @@ public class MainActivity extends Activity {
         GoogleSignInOptions signInOptions =
                 new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                         .requestScopes(Drive.SCOPE_FILE)
-                        //.setAccount(new Account("tuan260387@gmail.com","tmt2603th"))
+       .setAccount( new Account("tuan260387@gmail.com",GoogleAuthUtil.GOOGLE_ACCOUNT_TYPE))
                         .build();
         return GoogleSignIn.getClient(this, signInOptions);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
     }
 
     /** Create a new file and save it to Drive. */
