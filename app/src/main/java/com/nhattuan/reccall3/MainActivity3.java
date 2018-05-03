@@ -1,23 +1,23 @@
 package com.nhattuan.reccall3;
-
-import android.accounts.Account;
-import android.accounts.AccountManager;
 import android.app.Activity;
-
 import android.content.Intent;
 import android.content.IntentSender;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.annotation.RequiresApi;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
-import com.google.android.gms.common.api.ApiException;
-import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.drive.CreateFileActivityOptions;
 import com.google.android.gms.drive.Drive;
 import com.google.android.gms.drive.DriveClient;
@@ -25,64 +25,55 @@ import com.google.android.gms.drive.DriveContents;
 import com.google.android.gms.drive.DriveResourceClient;
 import com.google.android.gms.drive.MetadataChangeSet;
 import com.google.android.gms.tasks.Continuation;
-import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
-import com.google.api.client.extensions.android.http.AndroidHttp;
-import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential;
-import com.google.api.services.drive.DriveScopes;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 
+/**
+ * Android Drive Quickstart activity. This activity takes a photo and saves it in Google Drive. The
+ * user is prompted with a pre-made dialog which allows them to choose the file location.
+ */
+public class MainActivity3 extends Activity {
 
-public class MainActivity extends Activity {
-
-    private static final String TAG = "MainActivity";
-    private GoogleSignInClient mGoogleSignInClient;
-    private DriveClient mDriveClient;
-    private DriveResourceClient mDriveResourceClient;
+    private static final String TAG = "drive-quickstart";
     private static final int REQUEST_CODE_SIGN_IN = 0;
     private static final int REQUEST_CODE_CAPTURE_IMAGE = 1;
     private static final int REQUEST_CODE_CREATOR = 2;
 
+   private int RECORD_AUDIO_REQUEST_CODE = 12345;
+
+    private GoogleSignInClient mGoogleSignInClient;
+    private DriveClient mDriveClient;
+    private DriveResourceClient mDriveResourceClient;
     private Bitmap mBitmapToSave;
-    /**
-     * Create the main activity.
-     * @param savedInstanceState previously saved instance data.
-     */
+
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        mGoogleSignInClient = buildGoogleSignInClient();
-        startActivityForResult(mGoogleSignInClient.getSignInIntent(), REQUEST_CODE_SIGN_IN);
-
-        Task<GoogleSignInAccount> task = mGoogleSignInClient.silentSignIn();
-        if (task.isSuccessful()) {
-            // There's immediate result available.
-            GoogleSignInAccount signInAccount = task.getResult();
-            Log.d(TAG, "isSuccessful: " + signInAccount);
-            //updateViewWithAccount(account);
-        } else {
-            // There's no immediate result ready, displays some progress indicator and waits for the
-            // async callback.
-
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            getPermissionToRecordAudio();
         }
+        signIn();
 
-        GoogleAccountCredential credential = GoogleAccountCredential.usingOAuth2(this, DriveScopes.DRIVE);
-        credential.setSelectedAccountName(accountName);
-        Drive service = new Drive.Builder(AndroidHttp.newCompatibleTransport(), new GsonFactory(), credential).build();
-
+        // Other code ...
     }
 
-    private GoogleSignInClient buildGoogleSignInClient() {
+    /** Start sign in activity. */
+    private void signIn() {
+        Log.i(TAG, "Start sign in");
+        mGoogleSignInClient = buildGoogleSignInClient();
+        startActivityForResult(mGoogleSignInClient.getSignInIntent(), REQUEST_CODE_SIGN_IN);
+    }
 
+    /** Build a Google SignIn client. */
+    private GoogleSignInClient buildGoogleSignInClient() {
         GoogleSignInOptions signInOptions =
                 new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                         .requestScopes(Drive.SCOPE_FILE)
-                        //.setAccount(new Account("tuan260387@gmail.com","tmt2603th"))
                         .build();
         return GoogleSignIn.getClient(this, signInOptions);
     }
@@ -111,6 +102,10 @@ public class MainActivity extends Activity {
                         });
     }
 
+    /**
+     * Creates an {@link IntentSender} to start a dialog activity with configured {@link
+     * CreateFileActivityOptions} for user to create a new photo in Drive.
+     */
     private Task<Void> createFileIntentSender(DriveContents driveContents, Bitmap image) {
         Log.i(TAG, "New contents created.");
         // Get an output stream for the contents.
@@ -155,19 +150,15 @@ public class MainActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         switch (requestCode) {
             case REQUEST_CODE_SIGN_IN:
-                Log.i(TAG, "Sign in request code" + resultCode + " RESULT_OK " + RESULT_OK);
+                Log.i(TAG, "Sign in request code");
                 // Called after user is signed in.
                 if (resultCode == RESULT_OK) {
-                    //Log.i(TAG, "Signed in successfully.");
+                    Log.i(TAG, "Signed in successfully.");
                     // Use the last signed in account here since it already have a Drive scope.
-                    //mDriveClient = Drive.getDriveClient(this, GoogleSignIn.getLastSignedInAccount(this));
                     mDriveClient = Drive.getDriveClient(this, GoogleSignIn.getLastSignedInAccount(this));
-
                     // Build a drive resource client.
                     mDriveResourceClient =
                             Drive.getDriveResourceClient(this, GoogleSignIn.getLastSignedInAccount(this));
-
-                    Log.i(TAG, "Signed in successfully." + GoogleSignIn.getLastSignedInAccount(this).toJson());
                     // Start camera.
                     startActivityForResult(
                             new Intent(MediaStore.ACTION_IMAGE_CAPTURE), REQUEST_CODE_CAPTURE_IMAGE);
@@ -196,4 +187,57 @@ public class MainActivity extends Activity {
                 break;
         }
     }
+
+        @RequiresApi(api = Build.VERSION_CODES.M)
+    public void getPermissionToRecordAudio() {
+        String[] permissions = new String[]{
+                android.Manifest.permission.RECORD_AUDIO
+                , android.Manifest.permission.READ_EXTERNAL_STORAGE
+                , android.Manifest.permission.READ_PHONE_STATE
+                , android.Manifest.permission.PROCESS_OUTGOING_CALLS
+                , android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                , android.Manifest.permission.INTERNET
+                , android.Manifest.permission.ACCESS_NETWORK_STATE
+                , android.Manifest.permission.GET_ACCOUNTS
+        };
+        List<String> listPermissionsNeeded = new ArrayList<>();
+
+        for (String permission : permissions) {
+            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+                listPermissionsNeeded.add(permission);
+            }
+        }
+
+        if (!listPermissionsNeeded.isEmpty()) {
+            ActivityCompat.requestPermissions(this,
+                    listPermissionsNeeded.toArray(new String[listPermissionsNeeded.size()]),
+                    RECORD_AUDIO_REQUEST_CODE);
+        }
+
+    }
+
+    // Callback with the request from calling requestPermissions(...)
+    @RequiresApi(api = Build.VERSION_CODES.M)
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           @NonNull String permissions[],
+                                           @NonNull int[] grantResults) {
+        // Make sure it's our original READ_CONTACTS request
+        if (requestCode == RECORD_AUDIO_REQUEST_CODE) {
+            int count = 0;
+            for (int grantResult : grantResults) {
+                if (grantResult == PackageManager.PERMISSION_GRANTED) {
+                    count++;
+                }
+            }
+            if (grantResults.length == count) {
+                //Toast.makeText(this, "Record Audio permission granted", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "You must give permissions to use this app. App is exiting.", Toast.LENGTH_SHORT).show();
+                finishAffinity();
+            }
+        }
+
+    }
 }
+
